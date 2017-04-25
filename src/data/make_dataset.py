@@ -2,8 +2,26 @@
 import os
 import click
 import logging
+import datetime
 from dotenv import find_dotenv, load_dotenv
 
+def fix_year(yr : int):
+    '''
+    The year is specified only with the last 2 digits but, data
+    collection started in after 1950 and ended before 2050
+    '''
+    if yr > 50:
+        yr += 1900
+    else:
+        yr += 2000
+    return yr
+
+def time_correction(mlong : float):
+    '''
+    The time delta to add to an LST time to yield a UTC time,
+    given the prime meridian mlong in degrees.
+    '''
+    return datetime.timedelta(minutes = mlong / 15)
 
 @click.command()
 @click.argument('input_filepath', type=click.Path(exists=True))

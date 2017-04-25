@@ -23,9 +23,9 @@ endif
 requirements: test_environment
 	pip install -r requirements.txt
 
-## Make Dataset
-data: requirements
-	$(PYTHON_INTERPRETER) src/data/make_dataset.py
+## Process location data
+data/interim/locations.pkl: src/data/process_locations.py
+	$(PYTHON_INTERPRETER) src/data/process_locations.py
 
 ## Delete all compiled Python files
 clean:
