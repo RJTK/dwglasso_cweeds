@@ -23,9 +23,13 @@ endif
 requirements: test_environment
 	pip install -r requirements.txt
 
-## Process location data
-data/interim/locations.pkl: src/data/process_locations.py
-	$(PYTHON_INTERPRETER) src/data/process_locations.py
+## Load location data
+data/interim/locations.pkl: src/data/load_locations.py
+	$(PYTHON_INTERPRETER) src/data/load_locations.py
+
+## Load temperature data
+data/interim/interim_data.hdf: data/interim/locations.pkl src/data/load_data.py
+	$(PYTHON_INTERPRETER) src/data/load_data.py
 
 ## Delete all compiled Python files
 clean:
