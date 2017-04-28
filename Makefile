@@ -23,13 +23,34 @@ endif
 requirements: test_environment
 	pip install -r requirements.txt
 
-## Load location data
-data/interim/locations.pkl: src/data/load_locations.py
+# These .mklog files are a hack for make to keep track of
+# what scripts have been run.  I feel like make isn't
+# really the right tool for this job.  I need something
+# to keep track of the DAG that ins't fundamentally build
+# on creating and updating particular files.
+data/interim/locations.mklog: src/data/load_locations.py
+	touch data/interim/locations.mklog
 	$(PYTHON_INTERPRETER) src/data/load_locations.py
 
-## Load temperature data
-data/interim/interim_data.hdf: data/interim/locations.pkl src/data/load_data.py
+data/interim/temperatures.mklog: data/interim/locations.pkl src/data/load_data.py
+	touch data/interim/temperatures.mklog
 	$(PYTHON_INTERPRETER) src/data/load_data.py
+
+data/interim/clean.mklog: src/data/clean_data.py data/interim/locations.pkl data/interim/interim_data.hdf
+	touch data/interim/clean.mklog
+	$(PYTHON_INTERPRETER) src/data/clean_data.py
+
+## Read location data
+read_locations: data/interim/locations.mklog
+
+## Read temperature data
+read_temperatures: data/interim/temperatures.mklog
+
+## Clean temperature data
+clean_temperatures: data/interim/clean.mklog
+
+## ALL data
+all_data: read_locations read_temperatures clean_temperatures
 
 ## Delete all compiled Python files
 clean:

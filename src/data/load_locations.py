@@ -1,6 +1,6 @@
 '''
 This file loads in the fixed width file containing the information
-about each weather station's lat/long coordinates as well as the mlong
+about each weather station's lat/lon coordinates as well as the mlong
 prime meridian for the local standard time (LST) to universal time
 (UTC).  We perform the time correction to UTC, and also find the
 path to the time series file for the station.
@@ -17,7 +17,7 @@ import datetime
 
 import pandas as pd
 
-col_names = ['Name', 'WBAN', 'lat', 'long', 'mlong', 'first_year',
+col_names = ['Name', 'WBAN', 'lat', 'lon', 'mlong', 'first_year',
              'last_year']
 loc_cols = [(0, 24), (24, 30), (45, 52), (52, 58), (59, 65), (74, 76),
             (77, 79)]
@@ -41,7 +41,7 @@ def time_correction(mlong: float):
     The time delta to add to an LST time to yield a UTC time,
     given the prime meridian mlong in degrees.
     '''
-    return datetime.timedelta(minutes = mlong / 15)
+    return datetime.timedelta(hours = mlong / 15)
 
 def wban_fname(wban: str):
     '''Convert the WBAN string into the filename we need to look for'''
