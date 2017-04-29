@@ -5,7 +5,7 @@
 #################################################################################
 
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
-BUCKET = rjtk/dwglasso_cweeds/
+BUCKET = rjtk/dwglasso_cweeds
 PROJECT_NAME = dwglasso_cweeds
 PYTHON_INTERPRETER = python3
 
@@ -66,7 +66,7 @@ sync_data_to_s3:
 
 ## Download Data from S3
 sync_data_from_s3:
-	aws s3 sync s3://$(BUCKET)/data/ data/
+	aws s3 sync s3://$(BUCKET)/data/ data
 
 ## Set up python interpreter environment
 create_environment:
