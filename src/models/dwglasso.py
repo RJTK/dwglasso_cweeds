@@ -205,3 +205,11 @@ def dwglasso(D, p: int, lmbda: float, alpha: float=0.05, mu: float=0.1,
                                      'err = %0.14f' % rel_err_k)
             return Bz
     return
+
+
+def main():
+    return
+
+
+if __name__ == '__main__':
+    main()

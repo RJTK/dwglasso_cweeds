@@ -36,7 +36,11 @@ data/interim/temperatures.mklog: data/interim/locations.pkl src/data/load_data.p
 	touch data/interim/temperatures.mklog
 	$(PYTHON_INTERPRETER) src/data/load_data.py
 
-data/interim/clean.mklog: src/data/clean_data.py data/interim/locations.pkl data/interim/interim_data.hdf
+data/interim/interpolate.mklog: src/data/interpolate_data.py
+	$touch data/interim/interpolate.mklog
+	$(PYTHON_INTERPRETER) src/data/interpolate_data.py
+
+data/interim/clean.mklog: src/data/clean_data.py data/interim/interim_data.hdf
 	touch data/interim/clean.mklog
 	$(PYTHON_INTERPRETER) src/data/clean_data.py
 
@@ -46,11 +50,14 @@ read_locations: data/interim/locations.mklog
 ## Read temperature data
 read_temperatures: data/interim/temperatures.mklog
 
-## Clean temperature data
+## Interpolate missing temperature data
+interpolate_temperatures: data/interim/interpolate.mklog
+
+## Clean temperature data and produce dT feature
 clean_temperatures: data/interim/clean.mklog
 
 ## ALL data
-all_data: read_locations read_temperatures clean_temperatures
+all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures
 
 ## Delete all compiled Python files
 clean:

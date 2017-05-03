@@ -33,8 +33,25 @@ def temp_diff_to_hdf(hdf_path, key: str):
 
     '''
     with pd.HDFStore(hdf_path, mode='r') as hdf:
-        D = hdf[key]
-    #Do the stuff described in the docstring.
+        D = hdf[key]  # Read D from disk
+    # Trucate so that we don't start or end with unobserved data
+    t = D.index  # The times of observation
+    t_obs = t[D['T_flag'] != -1]
+    D = D[t_obs[0]:t_obs[-1]]  # Truncate
+
+    # Center the temperature series
+    T = D['T']
+    mu = T.mean()
+    T = T - mu
+    D.loc[:, 'T'] = T
+
+    # Get the differences.  Note that dT[0] = np.nan
+    dT = T.diff()
+    dT = dT - dT.mean()  # Ensure to center the differences too
+    D['dT'] = dT
+
+    # Open the database and write out the result.
+    D.to_hdf(hdf_path, key=key)
     return
 
 
@@ -43,13 +60,16 @@ def main():
     hdf_path = cwd + '/data/interim/' + HDF_FILE
     loc_key = '/' + LOCATIONS_ROOT + '/D'
 
+    # This task is mostly io bound, so there is no reason to
+    # do anything in parallel as in interpolate_data.py
+
     # Get the location data
     D_loc = pd.read_hdf(hdf_path, key=loc_key)
     hdf_group = '/' + TEMPERATURE_TS_ROOT + '/wban_'
     N = len(D_loc)
     for i, row in D_loc.iterrows():
         print('Processing record: ', i, '/', N, end='\r')
-        sys.stdio.flush()
+        sys.stdout.flush()
         temp_diff_to_hdf(hdf_path, hdf_group + row['WBAN'] + '/D')
     return
 
