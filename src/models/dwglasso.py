@@ -1,15 +1,16 @@
 '''Implements DWGLASSO and associated helper functions'''
-import numba
+import numba  # JIT compilation
 import numpy as np
+import pandas as pd
 from multiprocessing import Pool
 from itertools import combinations_with_replacement, repeat
 from scipy.linalg import lu_solve, lu_factor
 
 
 def periodogram_covar(x: np.array, y: np.array, tau: int, p: int):
-    '''Takes in a numpy arrays x and y, value tau for the lag and p for
-    the maximum lag and returns the periodogram estimate of the
-    covariance.
+    '''Takes in numpy arrays x and y, an int value tau for the lag and
+    another int p for the maximum lag and returns the periodogram
+    estimate of the covariance.
     '''
     assert np.allclose(x.mean(), 0), 'Signal x must be 0 mean!'
     assert np.allclose(y.mean(), 0), 'Signal y must be 0 mean!'
@@ -20,6 +21,38 @@ def periodogram_covar(x: np.array, y: np.array, tau: int, p: int):
         return (1 / T) * np.dot(x[p:], y[p - tau:-tau])
 
 
+# Exists essentially just to help implement the convenient notation in
+# the function periodogram_covar_matrices.
+class ColSelector(object):
+    '''
+    A helper object to select out the temperature data from our hdf store.
+    '''
+    def __init__(self, hdf: pd.io.pytables.HDFStore, keys, column):
+        '''Takes in an HDFStore D, an iterable of keys, and the column we
+        want to select from each of the key locations.  Precisely,
+        each key location (hdf[keys[i]]) should contain a pd.DataFrame
+        object D having the given column: D[column].
+
+        If we have t = ColSelector(hdf, keys, column) then t.keys()
+        will simply return keys, and t[k] will return
+        hdf[k][column]
+        '''
+        self.keys = keys
+        self.column = column
+        self.hdf = hdf
+        return
+
+    def __getitem__(self, k):
+        '''selector[k]'''
+        return self.hdf[k][self.column]
+
+    def keys(self):
+        return self.keys
+
+
+# Use the ColSelector class to give convenient access to an HDFStore
+# e.g. give ColSelector the keys we want to iterate through, and the
+# column we want to access.
 def periodogram_covar_matrices(D, p: int):
     '''Makes use of the helper functions periodogram_covar to calculate
     the covariance matrices Rx(0) ... Rx(p) where x_i is the i'th
@@ -35,7 +68,7 @@ def periodogram_covar_matrices(D, p: int):
             enumerate(D.keys()), 2):
         i, xi = ixi
         j, xj = jxj
-        xi = D[xi].values
+        xi = D[xi].values  # D[xi] should be a pd.Series.
         xj = D[xj].values
         Rx[i, j::n] = pool.starmap(periodogram_covar,
                                    zip(repeat(xi, p + 1),
@@ -51,8 +84,6 @@ def periodogram_covar_matrices(D, p: int):
     return Rx
 
 
-# This should work if D is a pd.io.pytables.HDFStore object
-# But I should probably pull out just a subset that fits in memory
 def form_ZZT(Rx: list[np.array]):
     '''Forms the matrix ZZT from the list of Rx matrices
     Rx = [Rx(0) Rx(1) ... Rx(p)] (n x n*(p + 1))
