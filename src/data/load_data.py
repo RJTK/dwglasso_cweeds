@@ -14,7 +14,7 @@ import datetime
 import multiprocessing
 import tables
 import pandas as pd
-from src.conf import LOC_PKL_FILE, LOCATIONS_ROOT, HDF_INTERIM_FILE,\
+from src.conf import LOC_PKL_FILE, LOCATIONS_KEY, HDF_INTERIM_FILE,\
     TEMPERATURE_TS_ROOT
 
 WY2_cols = [(6, 16), (91, 95), (95, 96)]  # Time, temperature, temp flag
@@ -120,7 +120,7 @@ def main():
     hdf.close()
 
     # Store the location data in the database as well
-    D_loc.to_hdf(hdf_file, '/' + LOCATIONS_ROOT + '/D')
+    D_loc.to_hdf(hdf_file, LOCATIONS_KEY)
 
     hdf_lock = multiprocessing.Lock()
     pool = multiprocessing.Pool(initializer=init_wy2_to_hdf,

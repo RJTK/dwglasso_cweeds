@@ -25,7 +25,9 @@ LOC_PKL_FILE = INTERIM_DATA_DIR + 'locations.pkl'
 # Path to interim data HDFStore
 HDF_INTERIM_FILE = INTERIM_DATA_DIR + 'interim_data.hdf'
 
-LOCATIONS_ROOT = 'locations'  # The root node of location data in hdf
+# The key for the locations DataFrame in the HDFStore
+LOCATIONS_KEY = '/locations/D'
+
 TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
 INIT_YEAR = 1980  # The initial year for final dataset
 FINAL_YEAR = 1990  # The final year for final dataset

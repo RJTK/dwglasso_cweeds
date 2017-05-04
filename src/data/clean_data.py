@@ -10,7 +10,7 @@ and it will not work if run directly as a script from this directory.
 
 import pandas as pd
 import sys
-from src.conf import HDF_INTERIM_FILE, LOCATIONS_ROOT, TEMPERATURE_TS_ROOT
+from src.conf import HDF_INTERIM_FILE, LOCATIONS_KEY, TEMPERATURE_TS_ROOT
 
 
 def temp_diff_to_hdf(hdf_path, key: str):
@@ -47,13 +47,12 @@ def temp_diff_to_hdf(hdf_path, key: str):
 
 def main():
     hdf_path = HDF_INTERIM_FILE
-    loc_key = '/' + LOCATIONS_ROOT + '/D'
 
     # This task is mostly io bound, so there is no reason to
     # do anything in parallel as in interpolate_data.py
 
     # Get the location data
-    D_loc = pd.read_hdf(hdf_path, key=loc_key)
+    D_loc = pd.read_hdf(hdf_path, key=LOCATIONS_KEY)
     hdf_group = '/' + TEMPERATURE_TS_ROOT + '/wban_'
     N = len(D_loc)
     for i, row in D_loc.iterrows():

@@ -10,7 +10,7 @@ and it will not work if run directly as a script from this directory.
 import pandas as pd
 import numpy as np
 import multiprocessing
-from src.confg import HDF_INTERIM_FILE, LOCATIONS_ROOT,\
+from src.confg import HDF_INTERIM_FILE, LOCATIONS_KEY,\
     TEMPERATURE_TS_ROOT
 
 
@@ -48,10 +48,9 @@ def init_lock(lock: multiprocessing.Lock, hdf_path: str):
 
 def main():
     hdf_path = HDF_INTERIM_FILE
-    loc_key = '/' + LOCATIONS_ROOT + '/D'
 
     # Get the location data
-    D_loc = pd.read_hdf(hdf_path, key=loc_key)
+    D_loc = pd.read_hdf(hdf_path, key=LOCATIONS_KEY)
 
     # See the interpolation notebook
     # This task is CPU bound by a long shot
