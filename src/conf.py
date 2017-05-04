@@ -22,8 +22,9 @@ LOC_DATA_FILE = RAW_DATA_DIR + 'locations.txt'
 # Path to pickle location data
 LOC_PKL_FILE = INTERIM_DATA_DIR + 'locations.pkl'
 
-# Path to interim data HDFStore
+# Path to HDFStores
 HDF_INTERIM_FILE = INTERIM_DATA_DIR + 'interim_data.hdf'
+HDF_FINAL_FILE = PROCESSED_DATA_DIR + 'final_data.hdf'
 
 # The key for the locations DataFrame in the HDFStore
 LOCATIONS_KEY = '/locations/D'

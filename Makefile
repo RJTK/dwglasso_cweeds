@@ -44,6 +44,10 @@ data/interim/clean.mklog: src/data/clean_data.py data/interim/interim_data.hdf
 	touch data/interim/clean.mklog
 	$(PYTHON_INTERPRETER) src/data/clean_data.py
 
+data/interim/final_dataset.mklog: src/data/final_dataset.py
+	touch data/interim/final_dataset.mklog
+	$(PYTHON_INTERPRETER) src/data/final_dataset.py
+
 ## Read location data
 read_locations: data/interim/locations.mklog
 
@@ -56,8 +60,11 @@ interpolate_temperatures: data/interim/interpolate.mklog
 ## Clean temperature data and produce dT feature
 clean_temperatures: data/interim/clean.mklog
 
+## Create final data set
+final_dataset: data/interim/final_dataset.mklog
+
 ## ALL data
-all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures
+all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures final_data
 
 ## Delete all compiled Python files
 clean:
