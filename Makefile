@@ -29,24 +29,28 @@ requirements: test_environment
 # to keep track of the DAG that ins't fundamentally build
 # on creating and updating particular files.
 data/interim/locations.mklog: src/data/load_locations.py
-	touch data/interim/locations.mklog
 	$(PYTHON_INTERPRETER) src/data/load_locations.py
+	touch data/interim/locations.mklog
 
 data/interim/temperatures.mklog: data/interim/locations.pkl src/data/load_data.py
-	touch data/interim/temperatures.mklog
 	$(PYTHON_INTERPRETER) src/data/load_data.py
+	touch data/interim/temperatures.mklog
 
 data/interim/interpolate.mklog: src/data/interpolate_data.py
-	$touch data/interim/interpolate.mklog
 	$(PYTHON_INTERPRETER) src/data/interpolate_data.py
+	$touch data/interim/interpolate.mklog
 
 data/interim/clean.mklog: src/data/clean_data.py data/interim/interim_data.hdf
-	touch data/interim/clean.mklog
 	$(PYTHON_INTERPRETER) src/data/clean_data.py
+	touch data/interim/clean.mklog
 
 data/interim/final_dataset.mklog: src/data/final_dataset.py
-	touch data/interim/final_dataset.mklog
 	$(PYTHON_INTERPRETER) src/data/final_dataset.py
+	touch data/interim/final_dataset.mklog
+
+data/interim/covars.mklog: data/interim/interim_data.hdf src/models/calculate_covars.py
+	$(PYTHON_INTERPRETER) src/models/calculate_covars.py
+	touch data/interim/covars.mklog
 
 ## Read location data
 read_locations: data/interim/locations.mklog
@@ -62,6 +66,9 @@ clean_temperatures: data/interim/clean.mklog
 
 ## Create final data set
 final_dataset: data/interim/final_dataset.mklog
+
+## Calculate covariances
+calculate_covars: data/interim/covars.mklog
 
 ## ALL data
 all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures final_data

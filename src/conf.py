@@ -29,6 +29,13 @@ HDF_FINAL_FILE = PROCESSED_DATA_DIR + 'final_data.hdf'
 # The key for the locations DataFrame in the HDFStore
 LOCATIONS_KEY = '/locations/D'
 
+# File prefixes for covariance matrix pickle files
+ZZT_FILE_PREFIX = cwd + '/data/processed/ZZT'
+YZT_FILE_PREFIX = cwd + '/data/processed/YZT'
+
+# The maximum value of p we are likely to use
+MAX_P = 12
+
 TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
 INIT_YEAR = 1980  # The initial year for final dataset
 FINAL_YEAR = 1990  # The final year for final dataset

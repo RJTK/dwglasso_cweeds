@@ -1,121 +1,21 @@
-'''Implements DWGLASSO and associated helper functions'''
+'''
+Implements DWGLASSO and associated helper functions.  We will load
+in the dT data from /data/interim/interim_data.hdf and then apply the
+dwglasso algorithm on a subsequence of this data.
+
+NOTE: This file is intended to be executed by make from the top
+level of the project directory hierarchy.  We rely on os.getcwd()
+and it will not work if run directly as a script from this directory.
+'''
+import sys
 import numba  # JIT compilation
 import numpy as np
-import pandas as pd
-from multiprocessing import Pool
-from itertools import combinations_with_replacement, repeat
 from scipy.linalg import lu_solve, lu_factor
+from src.conf import MAX_P, ZZT_FILE_PREFIX, YZT_FILE_PREFIX
 
 
-def periodogram_covar(x: np.array, y: np.array, tau: int, p: int):
-    '''Takes in numpy arrays x and y, an int value tau for the lag and
-    another int p for the maximum lag and returns the periodogram
-    estimate of the covariance.
-    '''
-    assert np.allclose(x.mean(), 0), 'Signal x must be 0 mean!'
-    assert np.allclose(y.mean(), 0), 'Signal y must be 0 mean!'
-    T = len(x) - p
-    if tau == 0:
-        return (1 / T) * np.dot(x, y)
-    else:
-        return (1 / T) * np.dot(x[p:], y[p - tau:-tau])
-
-
-# Exists essentially just to help implement the convenient notation in
-# the function periodogram_covar_matrices.
-class ColSelector(object):
-    '''
-    A helper object to select out the temperature data from our hdf store.
-    '''
-    def __init__(self, hdf: pd.io.pytables.HDFStore, keys, column):
-        '''Takes in an HDFStore D, an iterable of keys, and the column we
-        want to select from each of the key locations.  Precisely,
-        each key location (hdf[keys[i]]) should contain a pd.DataFrame
-        object D having the given column: D[column].
-
-        If we have t = ColSelector(hdf, keys, column) then t.keys()
-        will simply return keys, and t[k] will return
-        hdf[k][column]
-        '''
-        self.keys = keys
-        self.column = column
-        self.hdf = hdf
-        return
-
-    def __getitem__(self, k):
-        '''selector[k]'''
-        return self.hdf[k][self.column]
-
-    def keys(self):
-        return self.keys
-
-
-# Use the ColSelector class to give convenient access to an HDFStore
-# e.g. give ColSelector the keys we want to iterate through, and the
-# column we want to access.
-def periodogram_covar_matrices(D, p: int):
-    '''Makes use of the helper functions periodogram_covar to calculate
-    the covariance matrices Rx(0) ... Rx(p) where x_i is the i'th
-    column of D.  The matrices Rx(0) ... Rx(p - 1) form the top row
-    of ZZT and Rx(1) ... Rx(p) form YZT.
-    '''
-    # ***<x, y> is O(n), and the data is copied to and from each process.
-    # So, does parallelizing these calculations actually help?
-    pool = Pool(p)  # calculating dot(x, y) for large T
-    n = D.shape[1]
-    Rx = np.zeros((n, n * (p + 1)))
-    for ixi, jxj in combinations_with_replacement(
-            enumerate(D.keys()), 2):
-        i, xi = ixi
-        j, xj = jxj
-        xi = D[xi].values  # D[xi] should be a pd.Series.
-        xj = D[xj].values
-        Rx[i, j::n] = pool.starmap(periodogram_covar,
-                                   zip(repeat(xi, p + 1),
-                                       repeat(xj, p + 1),
-                                       range(p + 1),
-                                       repeat(p, p + 1))
-                                   )
-        # Fill in the rest by symmetry
-        Rx[j, i::n] = Rx[i, j::n]
-    pool.close()
-    pool.join()
-    Rx = list(np.split(Rx, p + 1, axis=1))
-    return Rx
-
-
-def form_ZZT(Rx: list[np.array]):
-    '''Forms the matrix ZZT from the list of Rx matrices
-    Rx = [Rx(0) Rx(1) ... Rx(p)] (n x n*(p + 1))
-
-    ZZT is a np x np block toeplitz form from the 0 to p - 1 lagged
-    covariance matrices of the n-vector x(t).
-    '''
-    ZZT_toprow = np.hstack(Rx[:-1])  # [Rx(0) ... Rx(p - 1)]
-    del Rx  # Free up the memory
-    n = ZZT_toprow.shape[0]
-    p = ZZT_toprow.shape[1] / n
-    ZZT = np.zeros((n * p, n * p))
-    for tau in range(1, p + 1):
-        ZZT[:, :n] = ZZT_toprow.T  # tau = 0
-    for tau in range(1, p):  # Create the block toeplitz structure
-        ZZT[:, tau * n:(tau + 1) * n] = np.roll(ZZT[:, (tau - 1) * n:tau * n],
-                                                shift=n * tau, axis=0)
-        ZZT[:n, tau * n:(tau + 1) * n] = ZZT_toprow[:, tau * n:(tau + 1) * n]
-    return ZZT
-
-
-def form_YZT(Rx: list[np.array]):
-    '''Forms the matrix YZT from the list of Rx matrices
-    Rx = [Rx(0) Rx(1) ... Rx(p)] (n x n*(p + 1))
-
-    YZT is an n x np matrix [Rx(1) ... Rx(p)]
-    '''
-    YZT = np.hstack(Rx[1:])  # [Rx(1) ... Rx(p)]
-    return YZT
-
-
-def dwglasso(D, p: int, lmbda: float, alpha: float=0.05, mu: float=0.1,
+def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
+             alpha: float=0.05, mu: float=0.1,
              tol=1e-6, max_iter=100):
     '''Minimizes over B:
 
@@ -162,11 +62,8 @@ def dwglasso(D, p: int, lmbda: float, alpha: float=0.05, mu: float=0.1,
         return P
 
     def rel_err(Bxk, Bzk):  # F-norm difference between Bx and Bz
-        return (1 / (n ** 2)) * np.linalg.norm(Bxk - Bzk, 'f')
+        return (1 / ((n * p) ** 2)) * np.linalg.norm(Bxk - Bzk, 'f')
 
-    Rx = periodogram_covar_matrices(D, p)
-    ZZT = form_ZZT(Rx)
-    YZT = form_YZT(Rx)
     n = ZZT.shape[0] / p
 
     if lmbda == 0:  # OLS
@@ -195,20 +92,27 @@ def dwglasso(D, p: int, lmbda: float, alpha: float=0.05, mu: float=0.1,
             rel_err_k = rel_err(Bx, Bz)
             while rel_err_k > tol and k < max_iter:  # ADMM iterations
                 k += 1
+                print('iter: ', k, '(1/(np)^2)||Bx - Bz||_F^2: ', rel_err_k,
+                      end='\r')
+                sys.stdout.flush()
                 Bx = proxf(Bz - Bu)
                 Bz = proxg(Bx + Bu)
                 Bu = Bu + Bx - Bz
                 rel_err_k = rel_err(Bx, Bz)
-
-            if k == max_iter:
+            print()  # Print out a newline
+            if k >= max_iter:  # Should only ever reach k == max_iter
                 raise RuntimeWarning('Max iterations exceeded! '
                                      'err = %0.14f' % rel_err_k)
             return Bz
-    return
 
 
 def main():
-    return
+    p = 1
+    assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
+    ZZT = np.load(ZZT_FILE_PREFIX + str(p))
+    YZT = np.load(YZT_FILE_PREFIX + str(p))
+    B_hat = dwglasso(ZZT, YZT, p)
+    return B_hat
 
 
 if __name__ == '__main__':
