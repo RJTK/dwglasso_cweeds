@@ -39,6 +39,7 @@ def main():
         if tk[0] <= t0 and tk[-1] >= tf:
             n += 1
             dT = D.loc[t, 'dT']
+            dT = dT - dT.mean()  # Ensure the data is centered
             Dk = pd.DataFrame(data=dT, index=t)
             hdf_final[k] = Dk
             D_loc_final = D_loc_final.append(row)

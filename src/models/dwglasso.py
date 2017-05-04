@@ -36,14 +36,15 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
     assert mu >= 0, 'Required: mu >= 0'  # 0 only if lmbda = 0 or alpha = 1
 
     # Proximity operators
-    @numba.jit(nopython=False, cache=True)
+    # @numba.jit(nopython=True, cache=True)
     def proxf(V: np.array):
-        '''proximity operator of ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2.
+        '''
+        proximity operator of ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2.
         See DWGLASSO paper for details
         '''
         return (lu_solve(lu_piv, YZT.T + V.T / mu)).T
 
-    @numba.jit(nopython=False, cache=True)
+    @numba.jit(nopython=True, cache=True)
     def proxg(V: np.array):
         '''proximity operator of alpha*lmbda*sum_ij||B_ij||_2 See DWGLASSO
         paper for details
@@ -54,7 +55,9 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
         for i in range(n):
             for j in range(n):
                 Vtij = V[i, j::n]
-                Vtij_l2 = np.linalg.norm(Vtij, ord=2)
+                Vtij_l2 = 0
+                for tau in range(p):  # Calling np.norm not valid w/ numba
+                    Vtij_l2 += Vtij[tau]**2
                 if Vtij_l2 == 0:
                     P[i, j::n] = 0
                 else:
@@ -77,7 +80,7 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
         if alpha == 1:  # Tikhonov regularization with lmbda
             print('L2 Regularization')
             # R and subsequently YZT are overwritten in the lu solver
-            R = (ZZT + lmbda * np.eye(n))  # Has nothing to do with Rx
+            R = (ZZT + lmbda * np.eye(n * p))  # Has nothing to do with Rx
             lu_piv = lu_factor(R.T, overwrite_a=True)
             B = lu_solve(lu_piv, YZT.T, overwrite_b=True, check_finite=True).T
             return B
@@ -89,7 +92,7 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
                 warnings.warn('We need alpha > 0 to guarantee convergence, '
                               'to the optimal B matrix', RuntimeWarning)
             r = (1 + 2 * mu * lmbda * alpha) / mu
-            R = (ZZT + r * np.eye(n))  # Has nothing to do with Rx
+            R = (ZZT + r * np.eye(n * p))  # Has nothing to do with Rx
             lu_piv = lu_factor(R.T, overwrite_a=True)
             Bz, Bu = np.zeros((n, n * p)), np.zeros((n, n * p))  # Init with 0s
             Bx = proxf(Bz)
@@ -116,10 +119,18 @@ def main():
     assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
     ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '.npy')
     YZT = np.load(YZT_FILE_PREFIX + str(p) + '.npy')
-    B_hat = dwglasso(ZZT, YZT, p, lmbda=0.1, alpha=0.1, tol=1e-6,
-                     mu=0.1)
+    B_hat = dwglasso(ZZT, YZT, p, lmbda=0.1, alpha=0.1, tol=1e-9,
+                     mu=1.0, max_iter=1000)
     print(B_hat)
+    print(np.nan in B_hat)
     print(np.sum(np.abs(B_hat) > 0))
+
+    import matplotlib as mpl
+    mpl.use('TkAgg')
+    from matplotlib import pyplot as plt
+    plt.imshow(B_hat)
+    plt.colorbar()
+    plt.show()
     return B_hat
 
 

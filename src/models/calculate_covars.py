@@ -8,11 +8,11 @@ NOTE: This file is intended to be executed by make from the top
 level of the project directory hierarchy.  We rely on os.getcwd()
 and it will not work if run directly as a script from this directory.
 '''
+import numba
 import sys
 import pandas as pd
 import numpy as np
-from itertools import combinations_with_replacement, repeat
-from multiprocessing import Pool
+from itertools import combinations_with_replacement, repeat, starmap
 from src.conf import ZZT_FILE_PREFIX, YZT_FILE_PREFIX, HDF_FINAL_FILE,\
     LOCATIONS_KEY, MAX_P, TEMPERATURE_TS_ROOT
 
@@ -22,10 +22,8 @@ def periodogram_covar(x: np.array, y: np.array, tau: int, p: int):
     another int p for the maximum lag and returns the periodogram
     estimate of the covariance.
     '''
-    # We have signals that are subsequences of zero mean signals
-    # It seems reasonable to ignore exact zero mean-ness for these.
-    # assert np.allclose(x.mean(), 0), 'Signal x must be 0 mean!'
-    # assert np.allclose(y.mean(), 0), 'Signal y must be 0 mean!'
+    assert np.allclose(x.mean(), 0), 'Signal x must be 0 mean!'
+    assert np.allclose(y.mean(), 0), 'Signal y must be 0 mean!'
     T = len(x) - p
     if tau == 0:
         return (1 / T) * np.dot(x, y)
@@ -72,9 +70,6 @@ def periodogram_covar_matrices(D, p: int):
     column of D.  The matrices Rx(0) ... Rx(p - 1) form the top row
     of ZZT and Rx(1) ... Rx(p) form YZT.
     '''
-    # ***<x, y> is O(n), and the data is copied to and from each process.
-    # So, does parallelizing these calculations actually help?
-    pool = Pool(p)  # calculating dot(x, y) for large T
     n = D.shape[1]
     Rx = np.zeros((n, n * (p + 1)))
     for ixi, jxj in combinations_with_replacement(
@@ -85,18 +80,22 @@ def periodogram_covar_matrices(D, p: int):
         sys.stdout.flush()
         xi = D[xi].values  # D[xi] should be a pd.Series.
         xj = D[xj].values
-        Rx[i, j::n] = pool.starmap(periodogram_covar,
-                                   zip(repeat(xi, p + 1),
-                                       repeat(xj, p + 1),
-                                       range(p + 1),
-                                       repeat(p, p + 1))
-                                   )
+        Rx[i, j::n] = np.fromiter(starmap(periodogram_covar,
+                                          zip(repeat(xi, p + 1),
+                                              repeat(xj, p + 1),
+                                              range(p + 1),
+                                              repeat(p, p + 1))),
+                                  float, count=p + 1)
         # Fill in the rest by symmetry
         Rx[j, i::n] = Rx[i, j::n]
     print()
-    pool.close()
-    pool.join()
     Rx = list(np.split(Rx, p + 1, axis=1))
+    # Rx = [Rxi + (1e-14) * np.eye(n) for Rxi in Rx]
+    # Ensure everything is positive semidefinite
+    for Rxi in Rx:
+        spec_i = np.linalg.eigvals(Rxi)  # The spectrum of Rxi
+        assert np.allclose(np.imag(spec_i), 0), 'Spectra not real'
+        assert np.all(np.abs(spec_i) >= 0), 'Rxi not PSD'
     return Rx
 
 

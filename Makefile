@@ -53,7 +53,7 @@ data/interim/covars.mklog: data/interim/interim_data.hdf src/models/calculate_co
 	touch data/interim/covars.mklog
 
 data/interim/dwglasso.mklog: src/models/dwglasso.py
-	$(PYTHON_INTERPRETER) src/models/dwglasso.py
+	$(PYTHON_INTERPRETER) -m pdb src/models/dwglasso.py
 	touch data/interim/dwglasso.mklog
 
 ## Read location data
