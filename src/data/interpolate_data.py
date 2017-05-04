@@ -11,14 +11,8 @@ import pandas as pd
 import numpy as np
 import os
 import multiprocessing
-
-DATA_DIR = '../data/interim/'
-HDF_FILE = 'interim_data.hdf'
-
-LOC_PKL_FILE = 'locations.pkl'  # Name of the locations metadata file
-LOCATIONS_ROOT = 'locations'
-HDF_FILE = 'interim_data.hdf'  # Name of the hdf file for ts data
-TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
+from src.confg import HDF_INTERIM_FILE, LOCATIONS_ROOT,\
+    TEMPERATURE_TS_ROOT
 
 
 def interpolate_to_hdf(key: str, method='pchip', order=None):
@@ -55,7 +49,7 @@ def init_lock(lock: multiprocessing.Lock, hdf_path: str):
 
 def main():
     cwd = os.getcwd()
-    hdf_path = cwd + '/data/interim/' + HDF_FILE
+    hdf_path = cwd + '/data/interim/' + HDF_INTERIM_FILE
     loc_key = '/' + LOCATIONS_ROOT + '/D'
 
     # Get the location data

@@ -9,18 +9,9 @@ and it will not work if run directly as a script from this directory.
 '''
 
 import pandas as pd
-import numpy as np
 import os
 import sys
-import multiprocessing
-
-DATA_DIR = '../data/interim/'
-HDF_FILE = 'interim_data.hdf'
-
-LOC_PKL_FILE = 'locations.pkl'  # Name of the locations metadata file
-LOCATIONS_ROOT = 'locations'
-HDF_FILE = 'interim_data.hdf'  # Name of the hdf file for ts data
-TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
+from src.conf import HDF_FILE, LOCATIONS_ROOT, TEMPERATURE_TS_ROOT
 
 
 def temp_diff_to_hdf(hdf_path, key: str):

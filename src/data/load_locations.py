@@ -14,16 +14,14 @@ and it will not work if run directly as a script from this directory.
 '''
 import os
 import datetime
-
 import pandas as pd
+from src.conf import LOC_DATA_FILE, LOC_PKL_FILE
 
 col_names = ['Name', 'WBAN', 'lat', 'lon', 'mlong', 'first_year',
              'last_year']
 loc_cols = [(0, 24), (24, 30), (45, 52), (52, 58), (59, 65), (74, 76),
             (77, 79)]
 
-LOC_DATA_FILE = 'locations.txt'
-PKL_FILE = 'locations.pkl'
 
 def fix_year(yr: int):
     '''
@@ -36,17 +34,19 @@ def fix_year(yr: int):
         yr += 2000
     return yr
 
+
 def time_correction(mlong: float):
     '''
     The time delta to add to an LST time to yield a UTC time,
     given the prime meridian mlong in degrees.
     '''
-    return datetime.timedelta(hours = mlong / 15)
+    return datetime.timedelta(hours=mlong / 15)
+
 
 def wban_fname(wban: str):
     '''Convert the WBAN string into the filename we need to look for'''
-    #CARE: This will give the files a relative path name.
-    #It will only work from the directory of this file.
+    # CARE: This will give the files a relative path name.
+    # It will only work from the directory of this file.
     cwd = os.getcwd()
     for root, dirs, files in os.walk(cwd + '/data/raw/'):
         for f in files:
@@ -54,12 +54,13 @@ def wban_fname(wban: str):
                 return root + '/' + f
     raise ValueError('404 wban %s not found!' % wban)
 
+
 def main():
     '''Program entry point'''
-    cwd = os.getcwd() #Current working directory
+    cwd = os.getcwd()  # Current working directory
     try:
-        D = pd.read_fwf(cwd + '/data/raw/' + LOC_DATA_FILE, colspecs = loc_cols,
-                        comment = '#', header = None, names = col_names)
+        D = pd.read_fwf(cwd + '/data/raw/' + LOC_DATA_FILE, colspecs=loc_cols,
+                        comment='#', header=None, names=col_names)
     except FileNotFoundError:
         raise FileNotFoundError('The file ' + cwd +
                                 '/data/raw/' + LOC_DATA_FILE +
@@ -69,10 +70,11 @@ def main():
     D.loc[:, ['first_year', 'last_year']] =\
         D.loc[:, ['first_year', 'last_year']].applymap(fix_year)
     D['time_correction'] = D.loc[:, 'mlong'].apply(time_correction)
-    del D['mlong'] #No longer needed
+    del D['mlong']  # No longer needed
     D['WBAN_file'] = D['WBAN'].apply(wban_fname)
-    D.to_pickle(cwd + '/data/interim/' + PKL_FILE)
+    D.to_pickle(cwd + '/data/interim/' + LOC_PKL_FILE)
     return
+
 
 if __name__ == '__main__':
     main()

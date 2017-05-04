@@ -15,12 +15,8 @@ import datetime
 import multiprocessing
 import tables
 import pandas as pd
-
-
-LOC_PKL_FILE = 'locations.pkl'  # Name of the locations metadata file
-LOCATIONS_ROOT = 'locations'
-HDF_FILE = 'interim_data.hdf'  # Name of the hdf file for ts data
-TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
+from src.conf import LOC_PKL_FILE, LOCATIONS_ROOT, HDF_INTERIM_FILE,\
+    TEMPERATURE_TS_ROOT
 
 WY2_cols = [(6, 16), (91, 95), (95, 96)]  # Time, temperature, temp flag
 WY2_col_names = ['Time', 'T', 'T_flag']  # Flags for missing data
@@ -62,11 +58,11 @@ def process_wy2f(file_path: str, time_correction: datetime.timedelta):
     return D
 
 # Temperature data is stored as follows:
-#   /<TEMPERATE_TS_ROOT>/wban_<WBAN>.Name <-- Name of location
-#   /<TEMPERATE_TS_ROOT>/wban_<WBAN>.WBAN <-- WBAN of location
-#   /<TEMPERATE_TS_ROOT>/wban_<WBAN>.lat <-- latitude of station
-#   /<TEMPERATE_TS_ROOT>/wban_<WBAN>.lon <-- longitude of station
-#   /<TEMPERATE_TS_ROOT>/wban_<WBAN>/D <-- The DataFrame object
+#   /<TEMPERATURE_TS_ROOT>/wban_<WBAN>.Name <-- Name of location
+#   /<TEMPERATURE_TS_ROOT>/wban_<WBAN>.WBAN <-- WBAN of location
+#   /<TEMPERATURE_TS_ROOT>/wban_<WBAN>.lat <-- latitude of station
+#   /<TEMPERATURE_TS_ROOT>/wban_<WBAN>.lon <-- longitude of station
+#   /<TEMPERATURE_TS_ROOT>/wban_<WBAN>/D <-- The DataFrame object
 #     (read */D with pandas)
 
 
@@ -116,7 +112,7 @@ def init_wy2_to_hdf(lock: multiprocessing.Lock, hdf_file: str):
 def main():
     '''Program entry point'''
     cwd = os.getcwd()
-    hdf_file = cwd + '/data/interim/' + HDF_FILE
+    hdf_file = cwd + '/data/interim/' + HDF_INTERIM_FILE
     # Load location metadata
     D_loc = pd.read_pickle(cwd + '/data/interim/' + LOC_PKL_FILE)
 
