@@ -52,6 +52,10 @@ data/interim/covars.mklog: data/interim/interim_data.hdf src/models/calculate_co
 	$(PYTHON_INTERPRETER) src/models/calculate_covars.py
 	touch data/interim/covars.mklog
 
+data/interim/dwglasso.mklog: src/models/dwglasso.py
+	$(PYTHON_INTERPRETER) src/models/dwglasso.py
+	touch data/interim/dwglasso.mklog
+
 ## Read location data
 read_locations: data/interim/locations.mklog
 
@@ -69,6 +73,9 @@ final_dataset: data/interim/final_dataset.mklog
 
 ## Calculate covariances
 calculate_covars: data/interim/covars.mklog
+
+## Run DWGLASSO
+run_dwglasso: data/interim/dwglasso.mklog
 
 ## ALL data
 all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures final_data

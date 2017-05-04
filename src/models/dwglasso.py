@@ -10,6 +10,7 @@ and it will not work if run directly as a script from this directory.
 import sys
 import numba  # JIT compilation
 import numpy as np
+import warnings
 from scipy.linalg import lu_solve, lu_factor
 from src.conf import MAX_P, ZZT_FILE_PREFIX, YZT_FILE_PREFIX
 
@@ -48,7 +49,7 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
         paper for details
         '''
         n = V.shape[0]
-        p = V.shape[1] / n
+        p = V.shape[1] // n
         P = np.empty((n, n * p))
         for i in range(n):
             for j in range(n):
@@ -61,18 +62,20 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
                     P[i, j::n] = max(0, 1 - r) * Vtij
         return P
 
-    def rel_err(Bxk, Bzk):  # F-norm difference between Bx and Bz
+    def rel_err(Bxk, Bzk):  # F-norm difference between Bx and Bz per entry
         return (1 / ((n * p) ** 2)) * np.linalg.norm(Bxk - Bzk, 'f')
 
-    n = ZZT.shape[0] / p
+    n = ZZT.shape[0] // p
 
     if lmbda == 0:  # OLS
+        print('OLS')
         lu_piv = lu_factor(ZZT.T, overwrite_a=True)
         B = lu_solve(lu_piv, YZT.T, overwrite_b=True, check_finite=True).T
         return B
 
     else:
         if alpha == 1:  # Tikhonov regularization with lmbda
+            print('L2 Regularization')
             # R and subsequently YZT are overwritten in the lu solver
             R = (ZZT + lmbda * np.eye(n))  # Has nothing to do with Rx
             lu_piv = lu_factor(R.T, overwrite_a=True)
@@ -80,12 +83,14 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
             return B
 
         else:  # DWGLASSO
+            print('DWGLASSO')
             assert mu > 0, 'Required: mu > 0 (unless lmbda = 0, or alpha = 1)'
             if alpha == 0:
-                raise RuntimeWarning('We need alpha > 0 to guarantee'
-                                     'convergence to the optimal B matrix')
+                warnings.warn('We need alpha > 0 to guarantee convergence, '
+                              'to the optimal B matrix', RuntimeWarning)
             r = (1 + 2 * mu * lmbda * alpha) / mu
             R = (ZZT + r * np.eye(n))  # Has nothing to do with Rx
+            lu_piv = lu_factor(R.T, overwrite_a=True)
             Bz, Bu = np.zeros((n, n * p)), np.zeros((n, n * p))  # Init with 0s
             Bx = proxf(Bz)
             k = 0
@@ -101,17 +106,20 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
                 rel_err_k = rel_err(Bx, Bz)
             print()  # Print out a newline
             if k >= max_iter:  # Should only ever reach k == max_iter
-                raise RuntimeWarning('Max iterations exceeded! '
-                                     'err = %0.14f' % rel_err_k)
+                warnings.warn('Max iterations exceeded! '
+                              'rel_err = %0.14f' % rel_err_k, RuntimeWarning)
             return Bz
 
 
 def main():
     p = 1
     assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
-    ZZT = np.load(ZZT_FILE_PREFIX + str(p))
-    YZT = np.load(YZT_FILE_PREFIX + str(p))
-    B_hat = dwglasso(ZZT, YZT, p)
+    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '.npy')
+    YZT = np.load(YZT_FILE_PREFIX + str(p) + '.npy')
+    B_hat = dwglasso(ZZT, YZT, p, lmbda=0.1, alpha=0.1, tol=1e-6,
+                     mu=0.1)
+    print(B_hat)
+    print(np.sum(np.abs(B_hat) > 0))
     return B_hat
 
 
