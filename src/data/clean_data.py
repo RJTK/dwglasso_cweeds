@@ -9,9 +9,8 @@ and it will not work if run directly as a script from this directory.
 '''
 
 import pandas as pd
-import os
 import sys
-from src.conf import HDF_FILE, LOCATIONS_ROOT, TEMPERATURE_TS_ROOT
+from src.conf import HDF_INTERIM_FILE, LOCATIONS_ROOT, TEMPERATURE_TS_ROOT
 
 
 def temp_diff_to_hdf(hdf_path, key: str):
@@ -47,8 +46,7 @@ def temp_diff_to_hdf(hdf_path, key: str):
 
 
 def main():
-    cwd = os.getcwd()
-    hdf_path = cwd + '/data/interim/' + HDF_FILE
+    hdf_path = HDF_INTERIM_FILE
     loc_key = '/' + LOCATIONS_ROOT + '/D'
 
     # This task is mostly io bound, so there is no reason to

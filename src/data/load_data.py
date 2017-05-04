@@ -10,7 +10,6 @@ level of the project directory hierarchy.  We rely on os.getcwd()
 and it will not work if run directly as a script from this directory.
 '''
 
-import os
 import datetime
 import multiprocessing
 import tables
@@ -111,10 +110,9 @@ def init_wy2_to_hdf(lock: multiprocessing.Lock, hdf_file: str):
 
 def main():
     '''Program entry point'''
-    cwd = os.getcwd()
-    hdf_file = cwd + '/data/interim/' + HDF_INTERIM_FILE
+    hdf_file = HDF_INTERIM_FILE
     # Load location metadata
-    D_loc = pd.read_pickle(cwd + '/data/interim/' + LOC_PKL_FILE)
+    D_loc = pd.read_pickle(LOC_PKL_FILE)
 
     # Create an hdf5 database
     hdf = tables.open_file(hdf_file, mode='w')

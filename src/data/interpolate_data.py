@@ -9,7 +9,6 @@ and it will not work if run directly as a script from this directory.
 '''
 import pandas as pd
 import numpy as np
-import os
 import multiprocessing
 from src.confg import HDF_INTERIM_FILE, LOCATIONS_ROOT,\
     TEMPERATURE_TS_ROOT
@@ -48,8 +47,7 @@ def init_lock(lock: multiprocessing.Lock, hdf_path: str):
 
 
 def main():
-    cwd = os.getcwd()
-    hdf_path = cwd + '/data/interim/' + HDF_INTERIM_FILE
+    hdf_path = HDF_INTERIM_FILE
     loc_key = '/' + LOCATIONS_ROOT + '/D'
 
     # Get the location data
