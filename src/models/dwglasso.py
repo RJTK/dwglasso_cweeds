@@ -12,7 +12,68 @@ import numba  # JIT compilation
 import numpy as np
 import warnings
 from scipy.linalg import cho_factor, cho_solve, lu_factor, lu_solve, eigh
-from src.conf import MAX_P, ZZT_FILE_PREFIX, YZT_FILE_PREFIX
+from itertools import product
+from src.conf import MAX_P, ZZT_FILE_PREFIX, YZT_FILE_PREFIX,\
+    X_VALIDATE_FILE_PREFIX
+
+
+def build_YZ(X, p):
+    '''
+    Builds the Y (output) and Z (input) matrices for the model from
+    the X matrix consisting of temperatures series in it's rows.
+    We need to also provide the lag length of the model, p.
+
+    X: n x T matrix of data.  Each row is a time series
+      X = [x(0), x(1), ..., x(T - 1)]
+    p: Model lag length
+
+    Returns (Y, Z):
+    Y: n x (T - p) matrix [x(p), x(p + 1), ..., x(T - 1)]
+    Z: np x (T - p) matrix [z(p - 1), z(p), ..., z(T - 2)]
+    where z(t) = [x(t).T x(t - 1).T, ..., x(t - p + 1).T].T stacks x's
+
+    Then with a n x np coefficient matrix we obtain:
+    Y_hat = B_hat * Z
+    '''
+    n = X.shape[0]
+    T = X.shape[1]
+    if T == 0:
+        return np.array([]), np.array([])
+    Y = X[:, p:]
+    assert Y.shape[0] == n and Y.shape[1] == T - p, 'Issues with shape!'
+
+    Z = np.zeros((n * p, T - p))
+    for tau in range(p):
+        Z[tau * n: (tau + 1) * n, :] = X[:, tau: tau - p]
+    return Y, Z
+
+
+def cross_validate(ZZT: np.array, YZT: np.array, Y: np.array, Z: np.array,
+                   p: int, lmbda: list, alpha: list, delta:
+                   list, sigma: list, mu: float=0.1, tol=1e-6,
+                   max_iter=100, warn_PSD=False, ret_B_err=False,
+                   n_thread: int=8):
+    '''
+    Run through each possible combinations of parameters given by
+    the lists lmbda, alpha, delta, and sigma and then fit the dwglasso
+    model and cross validate it against the 1-step ahead prediction
+    task on the data given in Z and Y.  Y_hat = B_hat * Z.
+    '''
+    n = Y.shape[0]
+    T = Y.shape[1]
+    p = Z.shape[0] // n
+    err_min = np.linalg.norm(Y, ord='fro')**2
+    B_opt = np.zeros((n, n * p))
+    for l, a, d, s in product(lmbda, alpha, delta, sigma):
+        B_hat = dwglasso(ZZT=ZZT, YZT=YZT, p=p, lmbda=l, alpha=a,
+                         mu=mu, delta=d, sigma=s, tol=tol,
+                         warn_PSD=warn_PSD, ret_B_err=ret_B_err)
+        Y_hat = np.dot(B_hat, Z)
+        err = (np.linalg.norm(Y - Y_hat, ord='fro')**2) / T
+        if err < err_min:
+            opt_params = {'lmbda': l, 'alpha': a, 'delta': d, 'sigma': s}
+            B_opt = B_hat
+    return B_opt, opt_params
 
 
 # This function is ridiculously complicated
@@ -42,22 +103,25 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
     # @numba.jit(nopython=True, cache=True)
     def proxf_lu(V: np.array):
         '''
-        proximity operator of ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2.
-        See DWGLASSO paper for details
+        proximity operator ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2,
+        implemented using an LU factorized covariance matrix.  This will
+        work even if the covariance matrix is (due to numerical issues)
+        not positive semi definite.
         '''
         return (lu_solve(lu_piv, YZT.T + V.T / mu,
                          overwrite_b=True, check_finite=False)).T
 
     def proxf_cho(V: np.array):
         '''
-        proximity operator of ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2.
-        See DWGLASSO paper for details
+        proximity operator of ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2,
+        implemented using a cholesky factorized covariance matrix.  This
+        requires the covariance matrix to be (numerically) positive
+        semidefinite.
         '''
         return (cho_solve(L_and_lower, YZT.T + V.T / mu,
                           overwrite_b=True, check_finite=False)).T
 
-
-    @numba.jit(nopython=True, cache=True)
+    @numba.jit(nopython=True, cache=True)  # Dramatic speed up is achieved
     def proxg(V: np.array):
         '''proximity operator of alpha*lmbda*sum_ij||B_ij||_2 See DWGLASSO
         paper for details
@@ -80,7 +144,7 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
 
     def admm():
         def rel_err(Bxk, Bzk):  # F-norm difference between Bx and Bz per entry
-            return (1 / ((n * p) ** 2)) * np.linalg.norm(Bxk - Bzk, 'f')**2
+            return (1 / (n * n * p)) * np.linalg.norm(Bxk - Bzk, 'f')**2
 
         # Init with 0s
         Bz, Bu = np.zeros((n, n * p)), np.zeros((n, n * p))
@@ -89,7 +153,7 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
         rel_err_k = rel_err(Bx, Bz)
         while rel_err_k > tol and k < max_iter:  # ADMM iterations
             k += 1
-            print('iter: ', k, '(1/(np)^2)||Bx - Bz||_F^2: ',
+            print('iter:', k, '(1/pn^2)||Bx - Bz||_F^2 =',
                   rel_err_k, end='\r')
             sys.stdout.flush()
             Bx = proxf(Bz - Bu)
@@ -98,7 +162,7 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
             rel_err_k = rel_err(Bx, Bz)
         print()  # Print out a newline
         if k >= max_iter:  # Should only ever reach k == max_iter
-            warnings.warn('Max iterations exceeded! rel_err = %0.14f'
+            warnings.warn('Max iterations exceeded! rel_err = %e'
                           % rel_err_k, RuntimeWarning)
         return Bz
 
@@ -174,20 +238,40 @@ def main():
     mpl.use('TkAgg')
     from matplotlib import pyplot as plt
 
-    p = 3
+    p = 2
     assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
 
-    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '_dT' + '.npy')
-    YZT = np.load(YZT_FILE_PREFIX + str(p) + '_dT' + '.npy')
+    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '_T' + '.npy')
+    YZT = np.load(YZT_FILE_PREFIX + str(p) + '_T' + '.npy')
+    XT = np.load(X_VALIDATE_FILE_PREFIX + '_T' + '.npy')
 
-    B_hat = dwglasso(ZZT, YZT, p, lmbda=0.05, alpha=0.2, tol=1e-11,
-                     mu=0.1, max_iter=100, sigma=6.0, delta=0.25,
+    Y_test, Z_test = build_YZ(XT, p)
+
+    B_hat = dwglasso(ZZT, YZT, p, lmbda=70.0, alpha=0.2, tol=1e-11,
+                     mu=0.1, max_iter=150, sigma=2.5, delta=0.1,
                      ret_B_err=False)
-    print('Non 0 entries: ', np.sum(np.abs(B_hat) > 0),
+    print('Non 0 entries:', np.sum(np.abs(B_hat) > 0),
           '/', B_hat.size)
     plt.imshow(B_hat)
     plt.colorbar()
-    plt.title('DWGLASSO Test Run on dT')
+    plt.title('DWGLASSO Test Run on T')
+    plt.show()
+
+    # Verify, by rolling accross the station axis, that we have everything
+    # correctly lined up.  We expect the lowest error on the non-rolled
+    # Z_test matrix.  Then another dip after it's been rolled all the way back
+    T = Y_test.shape[1]
+    n = Y_test.shape[0]
+    errs = []
+    for i in range(n + 10):
+        print('roll:', i, end='\r')
+        Y_hat = np.dot(B_hat, np.roll(Z_test, i, axis=0))
+        err_i = (np.linalg.norm(Y_hat - Y_test, ord='fro') ** 2) / T
+        errs.append(err_i)
+    plt.plot(range(n + 10), errs)
+    plt.title('Verification of alignment')
+    plt.xlabel('roll index')
+    plt.ylabel('Error')
     plt.show()
     return
 
