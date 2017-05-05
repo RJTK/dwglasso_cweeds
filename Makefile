@@ -48,13 +48,17 @@ data/interim/final_dataset.mklog: src/data/final_dataset.py
 	$(PYTHON_INTERPRETER) src/data/final_dataset.py
 	touch data/interim/final_dataset.mklog
 
-data/interim/covars.mklog: data/interim/interim_data.hdf src/models/calculate_covars.py
-	$(PYTHON_INTERPRETER) src/models/calculate_covars.py
+data/interim/covars.mklog: data/interim/interim_data.hdf src/data/calculate_covars.py
+	$(PYTHON_INTERPRETER) src/data/calculate_covars.py
 	touch data/interim/covars.mklog
 
 data/interim/dwglasso.mklog: src/models/dwglasso.py
 	$(PYTHON_INTERPRETER) src/models/dwglasso.py
 	touch data/interim/dwglasso.mklog
+
+data/interim/plots.mklog: src/models/plot_results.py
+	$(PYTHON_INTERPRETER) src/models/plot_results.py
+	touch data/interim/plots.mklog
 
 ## Read location data
 read_locations: data/interim/locations.mklog
@@ -74,8 +78,11 @@ final_dataset: data/interim/final_dataset.mklog
 ## Calculate covariances
 calculate_covars: data/interim/covars.mklog
 
-## Run DWGLASSO
-run_dwglasso: data/interim/dwglasso.mklog
+## Test DWGLASSO
+test_dwglasso: data/interim/dwglasso.mklog
+
+## Plot Results
+plot_results: data/interim/plots.mklog
 
 ## ALL data
 all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures final_data

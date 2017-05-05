@@ -177,8 +177,8 @@ def main():
     p = 3
     assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
 
-    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '.npy')
-    YZT = np.load(YZT_FILE_PREFIX + str(p) + '.npy')
+    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '_dT' + '.npy')
+    YZT = np.load(YZT_FILE_PREFIX + str(p) + '_dT' + '.npy')
 
     B_hat = dwglasso(ZZT, YZT, p, lmbda=0.05, alpha=0.2, tol=1e-11,
                      mu=0.1, max_iter=100, sigma=6.0, delta=0.25,
@@ -187,7 +187,7 @@ def main():
           '/', B_hat.size)
     plt.imshow(B_hat)
     plt.colorbar()
-    plt.title('DWGLASSO Test Run')
+    plt.title('DWGLASSO Test Run on dT')
     plt.show()
     return
 

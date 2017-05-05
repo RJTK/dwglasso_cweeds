@@ -77,6 +77,13 @@ def periodogram_covar_matrices(D, p: int):
     n = D.shape[1]
     Rx = np.zeros((n, n * (p + 1)))
 
+    # I'm unsure about the ordering conventions for D.keys()
+    # when called on a pd.DataFrame.  But, in this case I'm only
+    # using it with my own ColSelector class, where I know that
+    # D.keys() is a genuine, ordered list.  This ordering is of
+    # critical importance for later plotting as I'm using no other
+    # way to keep track of which covariance corresponds to which
+    # weather station.
     for ixi, jxj in combinations_with_replacement(
             enumerate(D.keys()), 2):
         i, xi = ixi
@@ -138,6 +145,8 @@ def form_YZT(Rx):
 def main():
     hdf_final = pd.HDFStore(HDF_FINAL_FILE, mode='a')
     wbans = hdf_final[LOCATIONS_KEY]['WBAN']
+
+    # The ORDER of this array is of CRITICAL importance for later plotting
     keys = [TEMPERATURE_TS_ROOT + '/wban_' + wban + '/D'
             for wban in wbans]
     col = 'dT'
@@ -146,8 +155,17 @@ def main():
         Rxp = periodogram_covar_matrices(D, p)
         ZZTp = form_ZZT(Rxp)
         YZTp = form_YZT(Rxp)
-        np.save(ZZT_FILE_PREFIX + str(p), ZZTp)
-        np.save(YZT_FILE_PREFIX + str(p), YZTp)
+        np.save(ZZT_FILE_PREFIX + str(p) + '_dT', ZZTp)
+        np.save(YZT_FILE_PREFIX + str(p) + '_dT', YZTp)
+
+    col = 'T'
+    D = ColSelector(hdf_final, keys, col)
+    for p in range(1, MAX_P + 1):
+        Rxp = periodogram_covar_matrices(D, p)
+        ZZTp = form_ZZT(Rxp)
+        YZTp = form_YZT(Rxp)
+        np.save(ZZT_FILE_PREFIX + str(p) + '_T', ZZTp)
+        np.save(YZT_FILE_PREFIX + str(p) + '_T', YZTp)
     return
 
 

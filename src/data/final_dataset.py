@@ -9,6 +9,7 @@ level of the project directory hierarchy.  We rely on os.getcwd()
 and it will not work if run directly as a script from this directory.
 '''
 import pandas as pd
+import numpy as np
 from datetime import datetime
 from src.conf import HDF_INTERIM_FILE, LOCATIONS_KEY, TEMPERATURE_TS_ROOT,\
     INIT_YEAR, FINAL_YEAR, HDF_FINAL_FILE
@@ -38,9 +39,11 @@ def main():
         tk = D.index
         if tk[0] <= t0 and tk[-1] >= tf:
             n += 1
-            dT = D.loc[t, 'dT']
-            dT = dT - dT.mean()  # Ensure the data is centered
-            Dk = pd.DataFrame(data=dT, index=t)
+            T = D.loc[t, 'T'].values
+            T = T - np.mean(T)
+            dT = D.loc[t, 'dT'].values
+            dT = dT - np.mean(dT)  # Ensure the data is centered
+            Dk = pd.DataFrame(data={'T': T, 'dT': dT}, index=t)
             hdf_final[k] = Dk
             D_loc_final = D_loc_final.append(row)
     print('\nNumber of series in final dataset: ', n)
