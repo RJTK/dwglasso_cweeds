@@ -8,7 +8,6 @@ NOTE: This file is intended to be executed by make from the top
 level of the project directory hierarchy.  We rely on os.getcwd()
 and it will not work if run directly as a script from this directory.
 '''
-import numba
 import sys
 import pandas as pd
 import numpy as np
@@ -26,7 +25,7 @@ def periodogram_covar(x: np.array, y: np.array, tau: int, p: int):
     assert np.allclose(y.mean(), 0), 'Signal y must be 0 mean!'
     T = len(x) - p
     if tau == 0:
-        return (1 / T) * np.dot(x, y)
+        return (1 / T) * np.dot(x[p:], y[p:])
     else:
         return (1 / T) * np.dot(x[p:], y[p - tau:-tau])
 
@@ -69,9 +68,15 @@ def periodogram_covar_matrices(D, p: int):
     the covariance matrices Rx(0) ... Rx(p) where x_i is the i'th
     column of D.  The matrices Rx(0) ... Rx(p - 1) form the top row
     of ZZT and Rx(1) ... Rx(p) form YZT.
+
+    We will return the raw estimates of covariances.  For large
+    systems, these estimates are unlikely to be positive semidefinite.
+    Shrinkage and regularization should be added later in the
+    pipeline.
     '''
     n = D.shape[1]
     Rx = np.zeros((n, n * (p + 1)))
+
     for ixi, jxj in combinations_with_replacement(
             enumerate(D.keys()), 2):
         i, xi = ixi
@@ -90,21 +95,21 @@ def periodogram_covar_matrices(D, p: int):
         Rx[j, i::n] = Rx[i, j::n]
     print()
     Rx = list(np.split(Rx, p + 1, axis=1))
-    # Rx = [Rxi + (1e-14) * np.eye(n) for Rxi in Rx]
-    # Ensure everything is positive semidefinite
-    for Rxi in Rx:
-        spec_i = np.linalg.eigvals(Rxi)  # The spectrum of Rxi
-        assert np.allclose(np.imag(spec_i), 0), 'Spectra not real'
-        assert np.all(np.abs(spec_i) >= 0), 'Rxi not PSD'
     return Rx
 
 
-def form_ZZT(Rx):
+def form_ZZT(Rx, delta=0.01):
     '''Forms the matrix ZZT from the list of Rx matrices
     Rx = [Rx(0) Rx(1) ... Rx(p)] (n x n*(p + 1))
 
     ZZT is a np x np block toeplitz form from the 0 to p - 1 lagged
     covariance matrices of the n-vector x(t).
+
+    CARE: The matrix returned from this function is unlikely to be
+    positive semidefinite for large n.  The shrinkage and other
+    manipulation necessary to ensure ZZT > 0 should be handled later
+    in the pipeline and the parameters involved should be considered
+    as true parameters of the model.
     '''
     ZZT_toprow = np.hstack(Rx[:-1])  # [Rx(0) ... Rx(p - 1)]
     del Rx  # Free up the memory

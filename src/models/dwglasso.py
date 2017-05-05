@@ -11,7 +11,8 @@ import sys
 import numba  # JIT compilation
 import numpy as np
 import warnings
-from scipy.linalg import lu_solve, lu_factor
+# from scipy.linalg import lu_solve, lu_factor
+from scipy.linalg import cho_factor, cho_solve
 from src.conf import MAX_P, ZZT_FILE_PREFIX, YZT_FILE_PREFIX
 
 
@@ -42,7 +43,9 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
         proximity operator of ||Y - BX||_F^2 + lmbda*(1 - alpha)||B||_F^2.
         See DWGLASSO paper for details
         '''
-        return (lu_solve(lu_piv, YZT.T + V.T / mu)).T
+        return (cho_solve(L_and_lower, YZT.T + V.T / mu,
+                          overwrite_b=True, check_finite=False)).T
+        # return (lu_solve(lu_piv, YZT.T + V.T / mu)).T
 
     @numba.jit(nopython=True, cache=True)
     def proxg(V: np.array):
@@ -72,8 +75,12 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
 
     if lmbda == 0:  # OLS
         print('OLS')
-        lu_piv = lu_factor(ZZT.T, overwrite_a=True)
-        B = lu_solve(lu_piv, YZT.T, overwrite_b=True, check_finite=True).T
+        # lu_piv = lu_factor(ZZT.T, overwrite_a=True)
+        # B = lu_solve(lu_piv, YZT.T, overwrite_b=True, check_finite=False).T
+
+        L_and_lower = cho_factor(ZZT.T, overwrite_a=True)
+        B = cho_solve(L_and_lower, YZT.T, overwrite_b=True,
+                      check_finite=False).T
         return B
 
     else:
@@ -81,8 +88,13 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
             print('L2 Regularization')
             # R and subsequently YZT are overwritten in the lu solver
             R = (ZZT + lmbda * np.eye(n * p))  # Has nothing to do with Rx
-            lu_piv = lu_factor(R.T, overwrite_a=True)
-            B = lu_solve(lu_piv, YZT.T, overwrite_b=True, check_finite=True).T
+            # lu_piv = lu_factor(R.T, overwrite_a=True)
+            # B = lu_solve(lu_piv, YZT.T, overwrite_b=True,
+            # check_finite=False).T
+
+            L_and_lower = cho_factor(R.T, overwrite_a=True)
+            B = cho_solve(L_and_lower, YZT.T, overwrite_b=True,
+                          check_finite=False).T
             return B
 
         else:  # DWGLASSO
@@ -93,7 +105,8 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
                               'to the optimal B matrix', RuntimeWarning)
             r = (1 + 2 * mu * lmbda * alpha) / mu
             R = (ZZT + r * np.eye(n * p))  # Has nothing to do with Rx
-            lu_piv = lu_factor(R.T, overwrite_a=True)
+            L_and_lower = cho_factor(R.T, overwrite_a=True)
+            # lu_piv = lu_factor(R.T, overwrite_a=True)
             Bz, Bu = np.zeros((n, n * p)), np.zeros((n, n * p))  # Init with 0s
             Bx = proxf(Bz)
             k = 0
@@ -115,24 +128,22 @@ def dwglasso(ZZT: np.array, YZT: np.array, p: int=1, lmbda: float=0.0,
 
 
 def main():
-    p = 1
-    assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
-    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '.npy')
-    YZT = np.load(YZT_FILE_PREFIX + str(p) + '.npy')
-    B_hat = dwglasso(ZZT, YZT, p, lmbda=0.1, alpha=0.1, tol=1e-9,
-                     mu=1.0, max_iter=1000)
-    print(B_hat)
-    print(np.nan in B_hat)
-    print(np.sum(np.abs(B_hat) > 0))
-
     import matplotlib as mpl
     mpl.use('TkAgg')
     from matplotlib import pyplot as plt
+
+    p = 2
+    assert p <= MAX_P and p >= 1, 'p must be in (1, MAX_P)!'
+
+    ZZT = np.load(ZZT_FILE_PREFIX + str(p) + '.npy')
+    YZT = np.load(YZT_FILE_PREFIX + str(p) + '.npy')
+
+    B_hat = dwglasso(ZZT, YZT, p, lmbda=0.0, alpha=0.1, tol=1e-7,
+                     mu=0.1, max_iter=1000)
     plt.imshow(B_hat)
     plt.colorbar()
     plt.show()
-    return B_hat
-
+    return
 
 if __name__ == '__main__':
     main()

@@ -34,7 +34,7 @@ ZZT_FILE_PREFIX = cwd + '/data/processed/ZZT'
 YZT_FILE_PREFIX = cwd + '/data/processed/YZT'
 
 # The maximum value of p we are likely to use
-MAX_P = 2
+MAX_P = 12
 
 TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
 INIT_YEAR = 1980  # The initial year for final dataset
