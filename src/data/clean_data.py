@@ -11,6 +11,7 @@ and it will not work if run directly as a script from this directory.
 import pandas as pd
 import sys
 from src.conf import HDF_INTERIM_FILE, LOCATIONS_KEY, TEMPERATURE_TS_ROOT
+from scipy.stats import uniform
 
 
 def temp_diff_to_hdf(hdf_path, key: str):
@@ -37,6 +38,10 @@ def temp_diff_to_hdf(hdf_path, key: str):
 
     # Get the differences.  Note that dT[0] = np.nan
     dT = T.diff()
+    # After about 1978 the data discretization is within 0.1degrees C,
+    # I dither the data so as to prevent any numerical issues resulting
+    # from this discretization.
+    dT = dT + uniform.rvs(loc=-0.5, scale=1.0, size=len(dT))
     dT = dT - dT.mean()  # Ensure to center the differences too
     D['dT'] = dT
 
