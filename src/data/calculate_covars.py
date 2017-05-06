@@ -118,17 +118,14 @@ def form_ZZT(Rx, delta=0.01):
     in the pipeline and the parameters involved should be considered
     as true parameters of the model.
     '''
-    ZZT_toprow = np.hstack(Rx[:-1])  # [Rx(0) ... Rx(p - 1)]
-    del Rx  # Free up the memory
-    n = ZZT_toprow.shape[0]
-    p = ZZT_toprow.shape[1] // n
+    p = len(Rx) - 1
+    n = Rx[0].shape[0]
     ZZT = np.zeros((n * p, n * p))
-    for tau in range(1, p + 1):
-        ZZT[:, :n] = ZZT_toprow.T  # tau = 0
-    for tau in range(1, p):  # Create the block toeplitz structure
-        ZZT[:, tau * n:(tau + 1) * n] = np.roll(ZZT[:, (tau - 1) * n:tau * n],
-                                                shift=n * tau, axis=0)
-        ZZT[:n, tau * n:(tau + 1) * n] = ZZT_toprow[:, tau * n:(tau + 1) * n]
+
+    for i in range(p):
+        for j in range(p):
+            ZZT[i * n:(i + 1) * n, j * n:(j + 1) * n] = Rx[abs(i - j)]
+
     return ZZT
 
 
