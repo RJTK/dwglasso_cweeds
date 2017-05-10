@@ -8,6 +8,11 @@ __pycache__/
 #Emacs backup files
 *~
 
+# Images
+*.png
+*.jpg
+*.svg
+
 # Distribution / packaging
 .Python
 env/

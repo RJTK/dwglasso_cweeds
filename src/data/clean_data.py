@@ -14,14 +14,13 @@ from src.conf import HDF_INTERIM_FILE, LOCATIONS_KEY, TEMPERATURE_TS_ROOT
 from scipy.stats import uniform
 
 
-def temp_diff_to_hdf(hdf_path, key: str):
+def temp_diff_to_hdf(hdf_path: str, key: str):
     '''
     Loads in a pandas dataframe from the key location in the hdf store
     given by hdf_path.  We then truncate the series so that it does
     not begin or end with unobserved data, we center the 'T' column,
     and we add a 'dT' column consisting of the first differences of
     the 'T' column.  This series will also be centered.
-
     '''
     with pd.HDFStore(hdf_path, mode='r') as hdf:
         D = hdf[key]  # Read D from disk

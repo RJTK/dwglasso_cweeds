@@ -26,22 +26,30 @@ LOC_PKL_FILE = INTERIM_DATA_DIR + 'locations.pkl'
 HDF_INTERIM_FILE = INTERIM_DATA_DIR + 'interim_data.hdf'
 HDF_FINAL_FILE = PROCESSED_DATA_DIR + 'final_data.hdf'
 
+# Path to a place to store figures
+FIGURE_ROOT = cwd + '/reports/figures/'
+
 # The key for the locations DataFrame in the HDFStore
 LOCATIONS_KEY = '/locations/D'
 
-# File prefixes for covariance matrix pickle files
+# File prefixes for pickle files
 ZZT_FILE_PREFIX = cwd + '/data/processed/ZZT'
 YZT_FILE_PREFIX = cwd + '/data/processed/YZT'
+X_VALIDATE_FILE_PREFIX = cwd + '/data/processed/X_validate'
 
 # The maximum value of p we are likely to use
-MAX_P = 12
+MAX_P = 3
 
 # The actual value of p that is used
-P_LAG = 5
+P_LAG = 2
 
 # The location of the canada shape file for geopandas
 CANADA_SHAPE = cwd + '/reports/shapefiles/Canada/Canada.shp'
 
-TEMPERATURE_TS_ROOT = 'temperature_ts'  # Name of the temperature key in hdf
+# Name of the temperature key in hdf
+TEMPERATURE_TS_ROOT = 'temperature_ts'
+
+# Used time intervals
 INIT_YEAR = 1980  # The initial year for final dataset
 FINAL_YEAR = 1990  # The final year for final dataset
+FINAL_YEAR_VALIDATE = 1995  # last year for validation set.
