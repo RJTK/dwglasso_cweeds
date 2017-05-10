@@ -44,6 +44,14 @@ data/interim/clean.mklog: src/data/clean_data.py data/interim/interim_data.hdf
 	$(PYTHON_INTERPRETER) src/data/clean_data.py
 	touch data/interim/clean.mklog
 
+data/interim/sinusoid_regression.mklog: src/data/sinusoid_regression.py
+	$(PYTHON_INTERPRETER) src/data/sinusoid_regression.py
+	touch data/interim/sinregress.mklog
+
+data/interim/filter_data.mklog: src/data/filter_data.py
+	$(PYTHON_INTERPRETER) src/data/filter_data.py
+	touch data/interim/filter_data.mklog
+
 data/interim/final_dataset.mklog: src/data/final_dataset.py
 	$(PYTHON_INTERPRETER) src/data/final_dataset.py
 	touch data/interim/final_dataset.mklog
@@ -60,6 +68,7 @@ data/interim/plots.mklog: src/models/plot_results.py
 	$(PYTHON_INTERPRETER) src/models/plot_results.py
 	touch data/interim/plots.mklog
 
+
 ## Read location data
 read_locations: data/interim/locations.mklog
 
@@ -71,6 +80,12 @@ interpolate_temperatures: data/interim/interpolate.mklog
 
 ## Clean temperature data and produce dT feature
 clean_temperatures: data/interim/clean.mklog
+
+## Sinusoidal regression
+sinusoid_regression: data/interim/sinusoid_regression.mklog
+
+## Filter data
+filter_data: data/interim/filter_data.mklog
 
 ## Create final data set
 final_dataset: data/interim/final_dataset.mklog
@@ -84,8 +99,8 @@ test_dwglasso: data/interim/dwglasso.mklog
 ## Plot Results
 plot_results: data/interim/plots.mklog
 
-## ALL data
-all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures final_data
+# ALL data
+#all_data: read_locations read_temperatures interpolate_temperatures clean_temperatures final_data
 
 ## Delete all compiled Python files
 clean:
